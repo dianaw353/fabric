@@ -53,22 +53,18 @@ class SystemTrayItem(Button):
     def on_clicked(self, _, event):
         match event.button:
             case 1:  # Left Click
-                # 1. If the item explicitly says it is a menu, skip Activate
+                # 1. Check if the item explicitly says it's a menu
                 if self._item.is_menu:
                     self._item.invoke_menu_for_event(event)
                     return
 
-                # 2. Try to activate normal apps
+                # 2. Try to activate the item
                 try:
                     self._item.activate_for_event(event)
-                except GLib.Error as e:
-                    # 3. Fallback: If Activate fails, open the menu
-                    # We use debug logging here because this is expected behavior for some apps
-                    logger.debug(
-                        f"[SystemTrayItem] Activate failed for {self._item.identifier}, falling back to menu. Error: {e}"
-                    )
+                except GLib.Error:
                     self._item.invoke_menu_for_event(event)
                 except Exception as e:
+                    # Only log real, unexpected errors
                     logger.warning(
                         f"[SystemTrayItem] Unexpected error activating {self._item.identifier}: {e}"
                     )
@@ -77,8 +73,7 @@ class SystemTrayItem(Button):
                 try:
                     self._item.secondary_activate_for_event(event)
                 except GLib.Error:
-                    # Secondary activate is optional, ignore if missing
-                    pass
+                    pass  # Secondary activate is often missing, safely ignore
 
             case 3:  # Right Click
                 self._item.invoke_menu_for_event(event)
