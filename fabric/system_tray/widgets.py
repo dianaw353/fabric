@@ -1,3 +1,5 @@
+import gi
+from gi.repository import GLib
 from loguru import logger
 from fabric.widgets.box import Box
 from fabric.widgets.image import Image
@@ -41,23 +43,44 @@ class SystemTrayItem(Button):
 
         tooltip = self._item.tooltip
         self.set_tooltip_markup(
-            tooltip.description or 
-            tooltip.title or 
-            (self._item.title.title() if self._item.title else None) or 
-            "Unknown"
+            tooltip.description
+            or tooltip.title
+            or (self._item.title.title() if self._item.title else None)
+            or "Unknown"
         )
         return
 
     def on_clicked(self, _, event):
         match event.button:
-            case 1:
+            case 1:  # Left Click
+                # 1. If the item explicitly says it is a menu, skip Activate
+                if self._item.is_menu:
+                    self._item.invoke_menu_for_event(event)
+                    return
+
+                # 2. Try to activate normal apps
                 try:
                     self._item.activate_for_event(event)
+                except GLib.Error as e:
+                    # 3. Fallback: If Activate fails, open the menu
+                    # We use debug logging here because this is expected behavior for some apps
+                    logger.debug(
+                        f"[SystemTrayItem] Activate failed for {self._item.identifier}, falling back to menu. Error: {e}"
+                    )
+                    self._item.invoke_menu_for_event(event)
                 except Exception as e:
                     logger.warning(
-                        f"[SystemTrayItem] can't activate item with name {self._item.title or self._item.identifier} ({e})"
+                        f"[SystemTrayItem] Unexpected error activating {self._item.identifier}: {e}"
                     )
-            case 3:
+
+            case 2:  # Middle Click
+                try:
+                    self._item.secondary_activate_for_event(event)
+                except GLib.Error:
+                    # Secondary activate is optional, ignore if missing
+                    pass
+
+            case 3:  # Right Click
                 self._item.invoke_menu_for_event(event)
         return
 
