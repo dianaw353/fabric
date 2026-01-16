@@ -1,3 +1,4 @@
+import os
 import gi
 from loguru import logger
 from typing import NamedTuple, Literal, Any, cast
@@ -151,50 +152,49 @@ class SystemTrayItem(Service):
     def get_preferred_icon_pixbuf(
         self,
         size: int | None = None,
-        resize_method: Literal[
-            "hyper",
-            "bilinear",
-            "nearest",
-            "tiles",
-        ]
-        | GdkPixbuf.InterpType = GdkPixbuf.InterpType.BILINEAR,
+        resize_method: (
+            Literal[
+                "hyper",
+                "bilinear",
+                "nearest",
+                "tiles",
+            ]
+            | GdkPixbuf.InterpType
+        ) = GdkPixbuf.InterpType.BILINEAR,
     ) -> GdkPixbuf.Pixbuf | None:
         icon_name = self.icon_name
         attention_icon_name = self.attention_icon_name
 
-        icon_pixmap = self.icon_pixmap
-        attention_icon_pixmap = self.attention_icon_pixmap
-
-        if self.status == "NeedsAttention" and (
-            attention_icon_name is not None or attention_icon_pixmap is not None
-        ):
+        if self.status == "NeedsAttention" and attention_icon_name is not None:
             preferred_icon_name = attention_icon_name
-            preferred_icon_pixmap = attention_icon_pixmap
         else:
             preferred_icon_name = icon_name
-            preferred_icon_pixmap = icon_pixmap
 
+        if not preferred_icon_name:
+            return None
+
+        target_size = size if size is not None else 24
         icon_theme = self.icon_theme
+        pixbuf = None
 
-        icon_theme_sizes: list | None = (
-            icon_theme.get_icon_sizes(preferred_icon_name)
-            if preferred_icon_name is not None
-            else None
-        )  # type: ignore
-        icon_theme_sizes = [] if not icon_theme_sizes else icon_theme_sizes
-        icon_theme_sizes.append(size if size is not None else 24)
-
-        pixbuf = (
-            preferred_icon_pixmap.as_pixbuf()
-            if preferred_icon_pixmap is not None
-            else icon_theme.load_icon(
-                preferred_icon_name,
-                max(icon_theme_sizes),
+        try:
+            icon_base = os.path.basename(preferred_icon_name)
+            pixbuf = icon_theme.load_icon(
+                icon_base,
+                target_size,
                 Gtk.IconLookupFlags.FORCE_SIZE,
             )
-            if preferred_icon_name is not None
-            else None
-        )
+        except GLib.Error:
+            pass
+
+        if pixbuf is None and os.path.isfile(preferred_icon_name):
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
+                    preferred_icon_name, target_size, target_size
+                )
+            except GLib.Error:
+                pass
+
         return (
             pixbuf.scale_simple(
                 size,
@@ -243,10 +243,15 @@ class SystemTrayItem(Service):
         if not self._icon_theme:
             self._icon_theme = Gtk.IconTheme.get_default()
             search_path = self.get_icon_theme_path()
-            self._icon_theme.set_search_path([search_path]) if search_path not in (
-                None,
-                "",
-            ) else None
+            (
+                self._icon_theme.set_search_path([search_path])
+                if search_path
+                not in (
+                    None,
+                    "",
+                )
+                else None
+            )
         return self._icon_theme
 
     @Property(str, "readable")
@@ -580,13 +585,17 @@ class SystemTray(Service):
         return
 
     def do_emit_bus_signal(self, signal_name: str, params: GLib.Variant) -> None:
-        self._connection.emit_signal(
-            None,
-            STATUS_NOTIFIER_WATCHER_BUS_PATH,
-            STATUS_NOTIFIER_WATCHER_BUS_NAME,
-            signal_name,
-            params,
-        ) if self._connection is not None else None
+        (
+            self._connection.emit_signal(
+                None,
+                STATUS_NOTIFIER_WATCHER_BUS_PATH,
+                STATUS_NOTIFIER_WATCHER_BUS_NAME,
+                signal_name,
+                params,
+            )
+            if self._connection is not None
+            else None
+        )
         return
 
     def do_notify_registered_item(self, identifier: str) -> None:
