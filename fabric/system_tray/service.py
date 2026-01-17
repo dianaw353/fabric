@@ -172,6 +172,31 @@ class SystemTrayItem(Service):
             return None
 
         target_size = size if size is not None else 24
+
+        # If the icon name is explicitly a path, try loading it directly first
+        if os.path.isabs(preferred_icon_name) and os.path.isfile(preferred_icon_name):
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
+                    preferred_icon_name, target_size, target_size
+                )
+                # If successful, scale and return immediately
+                return (
+                    pixbuf.scale_simple(
+                        size,
+                        size,
+                        get_enum_member(
+                            GdkPixbuf.InterpType,
+                            resize_method,
+                            default=GdkPixbuf.InterpType.NEAREST,
+                        ),
+                    )
+                    if size is not None and pixbuf is not None
+                    else pixbuf
+                )
+            except GLib.Error:
+                # If loading the path failed, fall through to the standard logic
+                pass
+
         icon_theme = self.icon_theme
         pixbuf = None
 
@@ -295,21 +320,21 @@ class SystemTrayItem(Service):
     # remote methods
     def context_menu(self, x: int, y: int) -> None:
         """to open a server-side context menu"""
-        return self._proxy.ContextMenu("(ii)", x, y)
+        # Ensure ints are passed to DBus
+        return self._proxy.ContextMenu("(ii)", int(x), int(y))
 
     def activate(self, x: int, y: int) -> None:
-        return self._proxy.Activate("(ii)", x, y)
+        return self._proxy.Activate("(ii)", int(x), int(y))
 
     def secondary_activate(self, x: int, y: int) -> None:
-        return self._proxy.SecondaryActivate("(ii)", x, y)
+        return self._proxy.SecondaryActivate("(ii)", int(x), int(y))
 
     def invoke_menu_for_event(self, event: Gdk.Event) -> None:
         menu = self.get_menu()
-        return (
-            menu.popup_at_pointer(event)
-            if menu is not None
-            else self.context_menu_for_event(event)
-        )
+        if menu is not None and len(menu.get_children()) > 0:
+            return menu.popup_at_pointer(event)
+
+        return self.context_menu_for_event(event)
 
     def scroll(
         self, delta: int, orientation: Literal["vertical", "horizontal"]
@@ -318,13 +343,16 @@ class SystemTrayItem(Service):
 
     # event methods
     def context_menu_for_event(self, event: Gdk.EventAny) -> None:
-        return self.context_menu(*event.get_root_coords())
+        x, y = event.get_root_coords()
+        return self.context_menu(int(x), int(y))
 
     def activate_for_event(self, event: Gdk.EventAny) -> None:
-        return self.activate(*event.get_root_coords())
+        x, y = event.get_root_coords()
+        return self.activate(int(x), int(y))
 
     def secondary_activate_for_event(self, event: Gdk.EventAny) -> None:
-        return self.secondary_activate(*event.get_root_coords())
+        x, y = event.get_root_coords()
+        return self.secondary_activate(int(x), int(y))
 
     def scroll_for_event(self, event: Gdk.EventScroll) -> None:
         direction = (

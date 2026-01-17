@@ -1,5 +1,3 @@
-import gi
-from gi.repository import GLib
 from loguru import logger
 from fabric.widgets.box import Box
 from fabric.widgets.image import Image
@@ -9,7 +7,7 @@ from fabric.system_tray.service import (
     SystemTrayItem as SystemTrayItemService,
 )
 
-
+# Singleton pattern for the watcher
 watcher: SystemTrayService | None = None
 
 
@@ -17,7 +15,6 @@ def get_tray_watcher() -> SystemTrayService:
     global watcher
     if not watcher:
         watcher = SystemTrayService()
-
     return watcher
 
 
@@ -29,9 +26,11 @@ class SystemTrayItem(Button):
         self._image = Image()
         self.set_image(self._image)
 
+        # Connect signals
         self._item.changed.connect(self.do_update_properties)
         self.connect("button-press-event", self.on_clicked)
 
+        # Initial setup
         self.do_update_properties()
 
     def do_update_properties(self, *_):
@@ -39,6 +38,7 @@ class SystemTrayItem(Button):
         if pixbuf is not None:
             self._image.set_from_pixbuf(pixbuf)
         else:
+            # Fallback icon
             self._image.set_from_icon_name("image-missing", self._icon_size)
 
         tooltip = self._item.tooltip
@@ -48,36 +48,28 @@ class SystemTrayItem(Button):
             or (self._item.title.title() if self._item.title else None)
             or "Unknown"
         )
-        return
 
     def on_clicked(self, _, event):
-        match event.button:
-            case 1:  # Left Click
-                # 1. Check if the item explicitly says it's a menu
-                if self._item.is_menu:
-                    self._item.invoke_menu_for_event(event)
-                    return
+        """
+        Handles mouse click events.
+        Rewritten to open the context menu on Left(1), Middle(2), and Right(3) clicks.
+        """
+        try:
+            # Forcing menu invocation for all buttons (1, 2, and 3)
+            self._item.invoke_menu_for_event(event)
+        except Exception as e:
+            logger.warning(
+                f"[SystemTrayItem] Failed to open menu for {self._item.identifier}: {e}"
+            )
 
-                # 2. Try to activate the item
+            # OPTIONAL: If the menu fails to open on Left Click (1),
+            # you might want to fallback to standard activation logic here.
+            # If you strictly want ONLY the menu, you can remove the code below.
+            if event.button == 1:
                 try:
                     self._item.activate_for_event(event)
-                except GLib.Error:
-                    self._item.invoke_menu_for_event(event)
-                except Exception as e:
-                    # Only log real, unexpected errors
-                    logger.warning(
-                        f"[SystemTrayItem] Unexpected error activating {self._item.identifier}: {e}"
-                    )
-
-            case 2:  # Middle Click
-                try:
-                    self._item.secondary_activate_for_event(event)
-                except GLib.Error:
-                    pass  # Secondary activate is often missing, safely ignore
-
-            case 3:  # Right Click
-                self._item.invoke_menu_for_event(event)
-        return
+                except Exception:
+                    pass
 
 
 class SystemTray(Box):
@@ -90,15 +82,21 @@ class SystemTray(Box):
         self._watcher.connect("item-added", self.on_item_added)
         self._watcher.connect("item-removed", self.on_item_removed)
 
+        # Load existing items immediately if any exist
+        if hasattr(self._watcher, "items"):
+            for identifier in self._watcher.items:
+                self.on_item_added(None, identifier)
+
     def on_item_added(self, _, item_identifier: str):
         item = self._watcher.items.get(item_identifier)
-        if not item:
+        if not item or item_identifier in self._items:
             return
 
         item_button = SystemTrayItem(item, self._icon_size)
         self.add(item_button)
         self._items[item.identifier] = item_button
-        return
+        # Ensure the new button is visible
+        item_button.show_all()
 
     def on_item_removed(self, _, item_identifier):
         item_button = self._items.get(item_identifier)
@@ -106,8 +104,8 @@ class SystemTray(Box):
             return
 
         self.remove(item_button)
+        item_button.destroy()
         self._items.pop(item_identifier)
-        return
 
 
 __all__ = ["SystemTray", "SystemTrayItem", "get_tray_watcher"]
