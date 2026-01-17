@@ -152,15 +152,13 @@ class SystemTrayItem(Service):
     def get_preferred_icon_pixbuf(
         self,
         size: int | None = None,
-        resize_method: (
-            Literal[
-                "hyper",
-                "bilinear",
-                "nearest",
-                "tiles",
-            ]
-            | GdkPixbuf.InterpType
-        ) = GdkPixbuf.InterpType.BILINEAR,
+        resize_method: Literal[
+            "hyper",
+            "bilinear",
+            "nearest",
+            "tiles",
+        ]
+        | GdkPixbuf.InterpType = GdkPixbuf.InterpType.BILINEAR,
     ) -> GdkPixbuf.Pixbuf | None:
         icon_name = self.icon_name
         attention_icon_name = self.attention_icon_name
@@ -243,15 +241,10 @@ class SystemTrayItem(Service):
         if not self._icon_theme:
             self._icon_theme = Gtk.IconTheme.get_default()
             search_path = self.get_icon_theme_path()
-            (
-                self._icon_theme.set_search_path([search_path])
-                if search_path
-                not in (
-                    None,
-                    "",
-                )
-                else None
-            )
+            self._icon_theme.set_search_path([search_path]) if search_path not in (
+                None,
+                "",
+            ) else None
         return self._icon_theme
 
     @Property(str, "readable")
