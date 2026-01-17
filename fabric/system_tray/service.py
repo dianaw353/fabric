@@ -321,17 +321,19 @@ class SystemTrayItem(Service):
         self, event: Gdk.Event, widget: Gtk.Widget | None = None
     ) -> None:
         menu = self.get_menu()
-        if menu is not None and len(menu.get_children()) > 0:
-            if widget:
-                return menu.popup_at_widget(
-                    widget,
-                    Gdk.Gravity.SOUTH,
-                    Gdk.Gravity.NORTH,
-                    event,
-                )
+        if not menu or not menu.get_children():
+            return self.context_menu_for_event(event)
+
+        if not widget:
             return menu.popup_at_pointer(event)
 
-        return self.context_menu_for_event(event)
+        return menu.popup_at_widget(
+            widget,
+            Gdk.Gravity.SOUTH,
+            Gdk.Gravity.NORTH,
+            event,
+        )
+
 
     def scroll(
         self, delta: int, orientation: Literal["vertical", "horizontal"]
