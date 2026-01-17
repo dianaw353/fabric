@@ -604,17 +604,13 @@ class SystemTray(Service):
         return
 
     def do_emit_bus_signal(self, signal_name: str, params: GLib.Variant) -> None:
-        (
-            self._connection.emit_signal(
-                None,
-                STATUS_NOTIFIER_WATCHER_BUS_PATH,
-                STATUS_NOTIFIER_WATCHER_BUS_NAME,
-                signal_name,
-                params,
-            )
-            if self._connection is not None
-            else None
-        )
+        self._connection.emit_signal(
+            None,
+            STATUS_NOTIFIER_WATCHER_BUS_PATH,
+            STATUS_NOTIFIER_WATCHER_BUS_NAME,
+            signal_name,
+            params,
+        ) if self._connection is not None else None
         return
 
     def do_notify_registered_item(self, identifier: str) -> None:
