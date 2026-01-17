@@ -26,11 +26,9 @@ class SystemTrayItem(Button):
         self._image = Image()
         self.set_image(self._image)
 
-        # Connect signals
         self._item.changed.connect(self.do_update_properties)
         self.connect("button-press-event", self.on_clicked)
 
-        # Initial setup
         self.do_update_properties()
 
     def do_update_properties(self, *_):
@@ -38,7 +36,6 @@ class SystemTrayItem(Button):
         if pixbuf is not None:
             self._image.set_from_pixbuf(pixbuf)
         else:
-            # Fallback icon
             self._image.set_from_icon_name("image-missing", self._icon_size)
 
         tooltip = self._item.tooltip
@@ -62,9 +59,6 @@ class SystemTrayItem(Button):
                 f"[SystemTrayItem] Failed to open menu for {self._item.identifier}: {e}"
             )
 
-            # OPTIONAL: If the menu fails to open on Left Click (1),
-            # you might want to fallback to standard activation logic here.
-            # If you strictly want ONLY the menu, you can remove the code below.
             if event.button == 1:
                 try:
                     self._item.activate_for_event(event)
@@ -82,7 +76,6 @@ class SystemTray(Box):
         self._watcher.connect("item-added", self.on_item_added)
         self._watcher.connect("item-removed", self.on_item_removed)
 
-        # Load existing items immediately if any exist
         if hasattr(self._watcher, "items"):
             for identifier in self._watcher.items:
                 self.on_item_added(None, identifier)
@@ -95,7 +88,6 @@ class SystemTray(Box):
         item_button = SystemTrayItem(item, self._icon_size)
         self.add(item_button)
         self._items[item.identifier] = item_button
-        # Ensure the new button is visible
         item_button.show_all()
 
     def on_item_removed(self, _, item_identifier):
