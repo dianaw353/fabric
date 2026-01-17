@@ -49,7 +49,6 @@ class SystemTrayItem(Button):
     def on_clicked(self, _, event):
         """
         Handles mouse click events.
-        Rewritten to open the context menu on Left(1), Middle(2), and Right(3) clicks.
         """
         try:
             self._item.invoke_menu_for_event(event, self)
