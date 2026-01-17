@@ -149,7 +149,7 @@ class SystemTrayItem(Service):
         self.notify(signal_to_prop)
         return self.changed()
 
-        def get_preferred_icon_pixbuf(
+    def get_preferred_icon_pixbuf(
         self,
         size: int | None = None,
         resize_method: Literal[
