@@ -309,14 +309,13 @@ class SystemTrayItem(Service):
     # remote methods
     def context_menu(self, x: int, y: int) -> None:
         """to open a server-side context menu"""
-        # Ensure ints are passed to DBus
-        return self._proxy.ContextMenu("(ii)", int(x), int(y))
+        return self._proxy.ContextMenu("(ii)", x, y)
 
     def activate(self, x: int, y: int) -> None:
-        return self._proxy.Activate("(ii)", int(x), int(y))
+        return self._proxy.Activate("(ii)", x, y)
 
     def secondary_activate(self, x: int, y: int) -> None:
-        return self._proxy.SecondaryActivate("(ii)", int(x), int(y))
+        return self._proxy.SecondaryActivate("(ii)", x, y)
 
     def invoke_menu_for_event(
         self, event: Gdk.Event, widget: Gtk.Widget | None = None
@@ -341,16 +340,13 @@ class SystemTrayItem(Service):
 
     # event methods
     def context_menu_for_event(self, event: Gdk.EventAny) -> None:
-        x, y = event.get_root_coords()
-        return self.context_menu(int(x), int(y))
+        return self.context_menu(*event.get_root_coords())
 
     def activate_for_event(self, event: Gdk.EventAny) -> None:
-        x, y = event.get_root_coords()
-        return self.activate(int(x), int(y))
+        return self.activate(*event.get_root_coords())
 
     def secondary_activate_for_event(self, event: Gdk.EventAny) -> None:
-        x, y = event.get_root_coords()
-        return self.secondary_activate(int(x), int(y))
+        return self.secondary_activate(*event.get_root_coords())
 
     def scroll_for_event(self, event: Gdk.EventScroll) -> None:
         direction = (
