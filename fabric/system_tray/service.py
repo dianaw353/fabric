@@ -149,7 +149,7 @@ class SystemTrayItem(Service):
         self.notify(signal_to_prop)
         return self.changed()
 
-    def get_preferred_icon_pixbuf(
+        def get_preferred_icon_pixbuf(
         self,
         size: int | None = None,
         resize_method: Literal[
@@ -163,60 +163,49 @@ class SystemTrayItem(Service):
         icon_name = self.icon_name
         attention_icon_name = self.attention_icon_name
 
-        if self.status == "NeedsAttention" and attention_icon_name is not None:
+        icon_pixmap = self.icon_pixmap
+        attention_icon_pixmap = self.attention_icon_pixmap
+
+        if self.status == "NeedsAttention" and (
+            attention_icon_name is not None or attention_icon_pixmap is not None
+        ):
             preferred_icon_name = attention_icon_name
+            preferred_icon_pixmap = attention_icon_pixmap
         else:
             preferred_icon_name = icon_name
+            preferred_icon_pixmap = icon_pixmap
 
-        if not preferred_icon_name:
-            return None
-
+        pixbuf = preferred_icon_pixmap.as_pixbuf() if preferred_icon_pixmap else None
         target_size = size if size is not None else 24
 
         # If the icon name is explicitly a path, try loading it directly first
-        if os.path.isabs(preferred_icon_name) and os.path.isfile(preferred_icon_name):
-            try:
-                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
-                    preferred_icon_name, target_size, target_size
-                )
-                # If successful, scale and return immediately
-                return (
-                    pixbuf.scale_simple(
-                        size,
-                        size,
-                        get_enum_member(
-                            GdkPixbuf.InterpType,
-                            resize_method,
-                            default=GdkPixbuf.InterpType.NEAREST,
-                        ),
-                    )
-                    if size is not None and pixbuf is not None
-                    else pixbuf
-                )
-            except GLib.Error:
-                # If loading the path failed, fall through to the standard logic
-                pass
-
-        icon_theme = self.icon_theme
-        pixbuf = None
-
-        try:
-            icon_base = os.path.basename(preferred_icon_name)
-            pixbuf = icon_theme.load_icon(
-                icon_base,
-                target_size,
-                Gtk.IconLookupFlags.FORCE_SIZE,
-            )
-        except GLib.Error:
-            pass
-
-        if pixbuf is None and os.path.isfile(preferred_icon_name):
+        if not pixbuf and preferred_icon_name and os.path.isabs(preferred_icon_name):
             try:
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
                     preferred_icon_name, target_size, target_size
                 )
             except GLib.Error:
                 pass
+
+        if not pixbuf and preferred_icon_name:
+            icon_theme = self.icon_theme
+            icon_theme_sizes = icon_theme.get_icon_sizes(preferred_icon_name) or []
+            lookup_size = max(icon_theme_sizes) if icon_theme_sizes else target_size
+
+            try:
+                pixbuf = icon_theme.load_icon(
+                    preferred_icon_name,
+                    lookup_size,
+                    Gtk.IconLookupFlags.FORCE_SIZE,
+                )
+            except GLib.Error:
+                if os.path.isfile(preferred_icon_name):
+                    try:
+                        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
+                            preferred_icon_name, target_size, target_size
+                        )
+                    except GLib.Error:
+                        pass
 
         return (
             pixbuf.scale_simple(
