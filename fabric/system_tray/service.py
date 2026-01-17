@@ -329,9 +329,18 @@ class SystemTrayItem(Service):
     def secondary_activate(self, x: int, y: int) -> None:
         return self._proxy.SecondaryActivate("(ii)", int(x), int(y))
 
-    def invoke_menu_for_event(self, event: Gdk.Event) -> None:
+    def invoke_menu_for_event(
+        self, event: Gdk.Event, widget: Gtk.Widget | None = None
+    ) -> None:
         menu = self.get_menu()
         if menu is not None and len(menu.get_children()) > 0:
+            if widget:
+                return menu.popup_at_widget(
+                    widget,
+                    Gdk.Gravity.SOUTH,
+                    Gdk.Gravity.NORTH,
+                    event,
+                )
             return menu.popup_at_pointer(event)
 
         return self.context_menu_for_event(event)

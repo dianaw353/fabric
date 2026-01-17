@@ -52,8 +52,7 @@ class SystemTrayItem(Button):
         Rewritten to open the context menu on Left(1), Middle(2), and Right(3) clicks.
         """
         try:
-            # Forcing menu invocation for all buttons (1, 2, and 3)
-            self._item.invoke_menu_for_event(event)
+            self._item.invoke_menu_for_event(event, self)
         except Exception as e:
             logger.warning(
                 f"[SystemTrayItem] Failed to open menu for {self._item.identifier}: {e}"
