@@ -1,5 +1,5 @@
-import os
 import gi
+from pathlib import Path
 from loguru import logger
 from typing import NamedTuple, Literal, Any, cast
 from fabric.core.service import Service, Signal, Property
@@ -179,7 +179,11 @@ class SystemTrayItem(Service):
         target_size = size if size is not None else 24
 
         # If the icon name is explicitly a path, try loading it directly first
-        if not pixbuf and preferred_icon_name and os.path.isabs(preferred_icon_name):
+        if (
+            not pixbuf
+            and preferred_icon_name
+            and Path(preferred_icon_name).is_absolute()
+        ):
             try:
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
                     preferred_icon_name, target_size, target_size
@@ -199,7 +203,7 @@ class SystemTrayItem(Service):
                     Gtk.IconLookupFlags.FORCE_SIZE,
                 )
             except GLib.Error:
-                if os.path.isfile(preferred_icon_name):
+                if Path(preferred_icon_name).is_file():
                     try:
                         pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(
                             preferred_icon_name, target_size, target_size
@@ -333,7 +337,6 @@ class SystemTrayItem(Service):
             Gdk.Gravity.NORTH,
             event,
         )
-
 
     def scroll(
         self, delta: int, orientation: Literal["vertical", "horizontal"]
