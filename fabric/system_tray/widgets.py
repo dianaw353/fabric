@@ -58,7 +58,7 @@ class SystemTrayItem(Button):
                         f"[SystemTrayItem] can't activate item with name {self._item.title or self._item.identifier} ({e})"
                     )
             case 3:
-                self._item.invoke_menu_for_event(event)
+                self._item.invoke_menu_for_event(event, self)
         return
 
 
