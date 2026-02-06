@@ -69,13 +69,15 @@ class SystemTray(Box):
         self._items: dict[str, SystemTrayItem] = {}
 
         self._watcher = get_tray_watcher()
-        self._watcher.item_added.connect(self.on_item_added)
-        self._watcher.item_removed.connect(self.on_item_removed)
+        self._watcher.connect("item-added", self.on_item_added)
+        self._watcher.connect("item-removed", self.on_item_removed)
 
     def on_item_added(self, _, item_identifier: str):
         item = self._watcher.items.get(item_identifier)
-        if not item:
-            return
+        if not item or item_identifier in self._items:
+            return logger.warning(
+                f"[SystemTray] Item {item_identifier} couldn't be fetched or already exists"
+            )
 
         item_button = SystemTrayItem(item, self._icon_size)
         self.add(item_button)
