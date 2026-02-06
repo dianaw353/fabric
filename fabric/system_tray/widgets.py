@@ -7,7 +7,7 @@ from fabric.system_tray.service import (
     SystemTrayItem as SystemTrayItemService,
 )
 
-# Singleton pattern for the watcher
+
 watcher: SystemTrayService | None = None
 
 
@@ -15,6 +15,7 @@ def get_tray_watcher() -> SystemTrayService:
     global watcher
     if not watcher:
         watcher = SystemTrayService()
+
     return watcher
 
 
@@ -40,28 +41,25 @@ class SystemTrayItem(Button):
 
         tooltip = self._item.tooltip
         self.set_tooltip_markup(
-            tooltip.description or
-            tooltip.title or
-            (self._item.title.title() if self._item.title else None) or
+            tooltip.description or 
+            tooltip.title or 
+            (self._item.title.title() if self._item.title else None) or 
             "Unknown"
         )
+        return
 
     def on_clicked(self, _, event):
-        """
-        Handles mouse click events.
-        """
-        try:
-            self._item.invoke_menu_for_event(event, self)
-        except Exception as e:
-            logger.warning(
-                f"[SystemTrayItem] Failed to open menu for {self._item.identifier}: {e}"
-            )
-
-            if event.button == 1:
+        match event.button:
+            case 1:
                 try:
                     self._item.activate_for_event(event)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"[SystemTrayItem] can't activate item with name {self._item.title or self._item.identifier} ({e})"
+                    )
+            case 3:
+                self._item.invoke_menu_for_event(event)
+        return
 
 
 class SystemTray(Box):
@@ -71,22 +69,18 @@ class SystemTray(Box):
         self._items: dict[str, SystemTrayItem] = {}
 
         self._watcher = get_tray_watcher()
-        self._watcher.connect("item-added", self.on_item_added)
-        self._watcher.connect("item-removed", self.on_item_removed)
-
-        if hasattr(self._watcher, "items"):
-            for identifier in self._watcher.items:
-                self.on_item_added(None, identifier)
+        self._watcher.item_added.connect(self.on_item_added)
+        self._watcher.item_removed.connect(self.on_item_removed)
 
     def on_item_added(self, _, item_identifier: str):
         item = self._watcher.items.get(item_identifier)
-        if not item or item_identifier in self._items:
+        if not item:
             return
 
         item_button = SystemTrayItem(item, self._icon_size)
         self.add(item_button)
         self._items[item.identifier] = item_button
-        item_button.show_all()
+        return
 
     def on_item_removed(self, _, item_identifier):
         item_button = self._items.get(item_identifier)
@@ -94,8 +88,8 @@ class SystemTray(Box):
             return
 
         self.remove(item_button)
-        item_button.destroy()
         self._items.pop(item_identifier)
+        return
 
 
 __all__ = ["SystemTray", "SystemTrayItem", "get_tray_watcher"]
