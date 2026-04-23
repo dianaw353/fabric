@@ -52,7 +52,7 @@ class SystemTrayItem(Button):
         match event.button:
             case 1:
                 try:
-                    self._item.activate_for_event(event)
+                    self._item.activate_for_event(event,self)
                 except Exception as e:
                     logger.warning(
                         f"[SystemTrayItem] can't activate item with name {self._item.title or self._item.identifier} ({e})"
